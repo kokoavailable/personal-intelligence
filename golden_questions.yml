@@ -1,0 +1,65 @@
+questions:
+  - id: infra-readiness-liveness
+    domain: infra
+    question: "readiness와 liveness의 차이를 실제 운영 장애나 배포 경험과 연결해서 설명할 수 있는가?"
+    expected_source_type: "wiki or original note"
+
+  - id: opentofu-secret-state
+    domain: infra
+    question: "IaC state에 secret이 남는 문제가 왜 위험하고, 어떤 대안들이 있는가?"
+    expected_source_type: "wiki or original note"
+
+  - id: k8s-core-model
+    domain: kubernetes
+    question: "Pod, Deployment, ReplicaSet, Service, Ingress의 관계를 내 언어로 설명할 수 있는가?"
+    expected_source_type: "wiki or original note"
+
+  - id: algorithm-pattern
+    domain: algorithms
+    question: "최근 공부한 알고리즘 문제에서 핵심 패턴과 다시 틀릴 위험이 있는 지점은 무엇인가?"
+    expected_source_type: "wiki or original note"
+
+  - id: backend-state-placement
+    domain: backend-systems
+    question: "상태를 어디에 둘지 판단할 때 in-process state, shared state, system of record, queue, log, object storage, observability data를 구분할 수 있는가?"
+    expected_source_type: "wiki or original note"
+
+  - id: observability-correlation
+    domain: observability
+    question: "metrics, logs, traces가 각각 답할 수 있는 질문과 trace-log-metric correlation의 한계를 설명할 수 있는가?"
+    expected_source_type: "wiki or original note"
+
+  - id: security-identity-boundary
+    domain: security
+    question: "PKI, SSH, ACME, OIDC에서 identity, key possession, controllable resource의 경계를 구분할 수 있는가?"
+    expected_source_type: "wiki or original note"
+
+  - id: llm-vector-search
+    domain: llm
+    question: "RAG나 vector search에서 keyword search, semantic search, HNSW, hybrid retrieval의 역할과 한계를 설명할 수 있는가?"
+    expected_source_type: "wiki or original note"
+
+  - id: investing-thesis
+    domain: investing
+    question: "주식 리포트에서 기술적 흐름, 펀더멘털, 뉴스 촉매, 진입 조건, 리스크 관리를 분리해서 설명할 수 있는가?"
+    expected_source_type: "wiki or original note"
+
+  - id: paper-claim
+    domain: papers
+    question: "최근 읽은 논문에서 실제로 쓸 수 있는 claim, 한계, 적용 조건은 무엇인가?"
+    expected_source_type: "wiki or original note"
+
+  - id: english-expression
+    domain: english
+    question: "최근 저장한 영어 표현 중 실제 대화에서 재사용 가능한 표현은 무엇인가?"
+    expected_source_type: "wiki or original note"
+
+  - id: career-positioning
+    domain: career
+    question: "내 현재 커리어 포지셔닝을 뒷받침하는 구체적 경험과 증거는 무엇인가?"
+    expected_source_type: "wiki or original note"
+
+  - id: anti-patterns
+    domain: meta
+    question: "최근 노트들에서 반복되는 실수, 착각, anti-pattern은 무엇인가?"
+    expected_source_type: "wiki/anti-patterns"
