@@ -38,6 +38,46 @@ Do not introduce new frameworks, databases, background agents, or complex script
 * `index.md` is the lightweight map.
 * `golden_questions.yml` is the evaluation set.
 * `log.md` records important maintenance actions.
+* `.private/eval_runs/` is for append-only evaluation run reports.
+* `evals/reports/` contains legacy evaluation reports and should be treated as read-only.
+* `AGENTS.md` is the source of truth for repository rules.
+* `README.md` is a human-facing overview, not a rules source.
+
+## Source tracking
+
+`.private/compiled_sources.yml` is the local-only registry that maps private raw source paths to stable source IDs.
+
+Use this schema:
+
+```yaml
+compiled_sources:
+  - source_id: src_short_stable_id
+    source_path: raw/imported/path-to-source.md
+    outputs:
+      - wiki/topics/example.md
+    compiled_at: YYYY-MM-DD
+```
+
+Rules:
+
+1. Raw source paths must be stored only in `.private/compiled_sources.yml`.
+2. New wiki notes must use source IDs in frontmatter.
+3. Existing wiki notes should be migrated from raw source paths to source IDs.
+4. Public exports must remove both raw source paths and private source IDs.
+5. Before compiling a new batch, read `.private/compiled_sources.yml`.
+6. Do not recompile sources already listed there unless explicitly updating existing wiki notes.
+7. `source_id` should be stable, short, and topic-based, for example `src_vmss_rolling_upgrade_001`.
+8. Do not include company names, internal domains, environment names, incident IDs, personal names, or secret-like values in `source_id`.
+
+## Evaluation state
+
+`golden_questions.yml` at the repository root is the evaluation specification.
+
+New evaluation runs must be written only under `.private/eval_runs/YYYY-MM-DD-HHMM-<target>.md`.
+
+Existing reports under `evals/reports/` are legacy read-only artifacts. Do not modify, delete, or append to them.
+
+Evaluation is coverage-only: it checks whether exactly one target corpus, `wiki/` or `public/`, contains evidence for the golden questions. Raw notes are prohibited during evaluation runs. Do not synthesize canonical answers, invent unsupported answers, or modify evaluated notes or evaluation criteria during an evaluation run. Do not modify `golden_questions.yml` during compilation or during the same knowledge cycle; propose evaluation-criteria changes separately.
 
 ## Hard rules
 
@@ -45,7 +85,7 @@ Do not introduce new frameworks, databases, background agents, or complex script
 2. Do not rewrite original notes unless explicitly asked.
 3. Prefer small diffs.
 4. Before creating a new wiki note, search for an existing related note.
-5. Preserve source paths.
+5. Preserve source traceability.
 6. Every non-obvious claim in `wiki/` must point back to source notes.
 7. Do not invent facts.
 8. Do not silently delete or overwrite old knowledge.
@@ -61,7 +101,7 @@ Use this only when creating new wiki notes:
 id: short-stable-id
 type: topic | decision | anti-pattern
 source:
-  - path/to/source.md
+  - src_source_id
 valid_from: YYYY-MM-DD
 ---
 ```

@@ -8,7 +8,13 @@ P0: preserve notes, build minimal map, evaluate with golden questions.
 
 - Raw source notes live in `raw/imported/`.
 - New unprocessed notes go to `raw/inbox/`.
-- No compiled wiki notes yet.
+- Compiled wiki notes are listed below.
+
+## Compiled wiki notes
+
+- [[wiki/topics/vmss-rolling-upgrade-health-gates]]
+- [[wiki/decisions/use-golden-image-vmss-rolling-upgrade]]
+- [[wiki/anti-patterns/manual-ssh-deployments-on-vmss]]
 
 ## Domains
 
