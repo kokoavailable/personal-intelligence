@@ -1,0 +1,10 @@
+# Private source notes
+raw/
+
+# Local-only knowledge and metadata
+wiki/
+.private/
+
+# Python bytecode
+__pycache__/
+*.pyc

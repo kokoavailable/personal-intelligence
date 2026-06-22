@@ -16,14 +16,15 @@ P0 means:
 
 * preserve existing notes
 * avoid over-structuring
-* avoid automation
+* allow only small deterministic helper scripts for local checks, indexing, logging, and export
+* avoid heavy, background, or autonomous automation
 * avoid vector databases
 * avoid graph databases
 * avoid MCP
 * avoid multi-agent workflows
 * avoid large rewrites
 
-Do not introduce new frameworks, databases, background agents, or complex scripts unless explicitly asked.
+Do not introduce new frameworks, databases, background agents, autonomous workflows, or complex scripts unless explicitly asked. Task procedures belong in Skills; AGENTS.md sets repository policy only.
 
 ## Repository model
 
@@ -35,49 +36,18 @@ Do not introduce new frameworks, databases, background agents, or complex script
 * `wiki/topics/` is for general concepts and topic documents.
 * `wiki/decisions/` is for decisions and tradeoffs.
 * `wiki/anti-patterns/` is for mistakes, traps, and things to avoid.
-* `index.md` is the lightweight map.
-* `golden_questions.yml` is the evaluation set.
-* `log.md` records important maintenance actions.
-* `.private/eval_runs/` is for append-only evaluation run reports.
-* `evals/reports/` contains legacy evaluation reports and should be treated as read-only.
+* `wiki/index.md` is a navigation-only lightweight generated view of compiled wiki notes.
+* `golden_questions.yml` is the manually curated evaluation set and is immutable to all skills unless the user explicitly asks to edit it.
+* `.private/` is local-only tracking metadata and must not be treated as public content.
+* `.private/compiled_sources.yml` tracks which raw source notes have already been compiled into wiki notes.
+* `.private/knowledge_cycle_log.md` records operational maintenance history only.
+* `.private/eval_runs/` contains local-only evaluation reports.
+* `public/` is for public-safe exported outputs.
+* `.agents/skills/` contains task-specific skill instructions. Skills must read and follow `AGENTS.md`; they must not override repository policy.
+* `prompts/`, if present, contains legacy or ad hoc task prompts. Current maintained workflows should prefer skills.
+* `scripts/` contains local helper scripts for listing, checking, indexing, logging, and exporting. Scripts are not agents.
 * `AGENTS.md` is the source of truth for repository rules.
 * `README.md` is a human-facing overview, not a rules source.
-
-## Source tracking
-
-`.private/compiled_sources.yml` is the local-only registry that maps private raw source paths to stable source IDs.
-
-Use this schema:
-
-```yaml
-compiled_sources:
-  - source_id: src_short_stable_id
-    source_path: raw/imported/path-to-source.md
-    outputs:
-      - wiki/topics/example.md
-    compiled_at: YYYY-MM-DD
-```
-
-Rules:
-
-1. Raw source paths must be stored only in `.private/compiled_sources.yml`.
-2. New wiki notes must use source IDs in frontmatter.
-3. Existing wiki notes should be migrated from raw source paths to source IDs.
-4. Public exports must remove both raw source paths and private source IDs.
-5. Before compiling a new batch, read `.private/compiled_sources.yml`.
-6. Do not recompile sources already listed there unless explicitly updating existing wiki notes.
-7. `source_id` should be stable, short, and topic-based, for example `src_vmss_rolling_upgrade_001`.
-8. Do not include company names, internal domains, environment names, incident IDs, personal names, or secret-like values in `source_id`.
-
-## Evaluation state
-
-`golden_questions.yml` at the repository root is the evaluation specification.
-
-New evaluation runs must be written only under `.private/eval_runs/YYYY-MM-DD-HHMM-<target>.md`.
-
-Existing reports under `evals/reports/` are legacy read-only artifacts. Do not modify, delete, or append to them.
-
-Evaluation is coverage-only: it checks whether exactly one target corpus, `wiki/` or `public/`, contains evidence for the golden questions. Raw notes are prohibited during evaluation runs. Do not synthesize canonical answers, invent unsupported answers, or modify evaluated notes or evaluation criteria during an evaluation run. Do not modify `golden_questions.yml` during compilation or during the same knowledge cycle; propose evaluation-criteria changes separately.
 
 ## Hard rules
 
@@ -91,6 +61,8 @@ Evaluation is coverage-only: it checks whether exactly one target corpus, `wiki/
 8. Do not silently delete or overwrite old knowledge.
 9. If information conflicts, mark the conflict instead of resolving it silently.
 10. Do not auto-commit. Show proposed changes first.
+11. Do not modify `golden_questions.yml` from repository skills. It is manually curated.
+12. Generated sections in `wiki/index.md` must be updated by deterministic scripts after their markers exist.
 
 ## Minimal frontmatter for P0
 
@@ -109,7 +81,10 @@ valid_from: YYYY-MM-DD
 Do not require tags, confidence, valid_to, embeddings, graph IDs, or links in P0.
 
 P0 wiki notes only use `topic`, `decision`, or `anti-pattern` as frontmatter `type`.
-`project` and `question` items should remain in raw notes, `index.md`, or `log.md` unless explicitly promoted into one of those wiki types.
+Wiki frontmatter keeps the field name `source` as a list, and every value must be a stable `src_...` source ID.
+Raw source paths belong only in `.private/compiled_sources.yml`, where the registry owns `source_id` -> `source_path` -> `outputs` mappings.
+Source IDs must remain stable if raw files are moved or renamed.
+`project` and `question` material remains in raw notes or task discussion unless explicitly promoted into `topic`, `decision`, or `anti-pattern` wiki notes.
 
 ## Knowledge types
 
@@ -121,17 +96,16 @@ When processing notes, classify reusable knowledge as one of:
 * project: ongoing work or implementation context
 * question: open question worth evaluating later
 
-## Ingestion workflow
+## Generated index
 
-When asked to ingest notes:
+The compiled wiki list in `wiki/index.md` is generated between these markers:
 
-1. Inspect the source files.
-2. Summarize what is reusable.
-3. Propose at most 3 wiki changes.
-4. Propose index updates.
-5. Propose golden question updates only if useful.
-6. Show a diff.
-7. Wait for approval before making broad changes.
+```md
+<!-- BEGIN GENERATED WIKI INDEX -->
+<!-- END GENERATED WIKI INDEX -->
+```
+
+Do not leave compiled wiki links duplicated outside that generated block.
 
 ## Scope
 

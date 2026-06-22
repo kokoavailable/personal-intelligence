@@ -14,6 +14,11 @@ PUBLIC = ROOT / "public"
 PUBLIC_SAFE_COMMENT = "<!-- public_safe: true -->"
 SAFE_FRONTMATTER_KEYS = {"id", "type", "valid_from"}
 PRIVATE_SOURCE_ID = re.compile(r"\bsrc_[A-Za-z0-9][A-Za-z0-9_-]*\b")
+PRIVATE_RAW_PATH = re.compile(r"(?<![A-Za-z0-9_.-])raw/(?:imported|inbox)/[^\s`\"'<>)]*")
+PRIVATE_REFERENCE_PATTERNS = (
+    ("raw source path", PRIVATE_RAW_PATH),
+    ("private source ID", PRIVATE_SOURCE_ID),
+)
 
 
 def rel(path: Path) -> str:
@@ -79,10 +84,16 @@ def has_public_safe_marker(text: str, frontmatter: list[str] | None, body: str) 
     return PUBLIC_SAFE_COMMENT in body or PUBLIC_SAFE_COMMENT in text or frontmatter_public_safe(frontmatter)
 
 
-def sanitize_body(body: str) -> str:
-    body = body.replace(PUBLIC_SAFE_COMMENT, "")
-    body = PRIVATE_SOURCE_ID.sub("[private-source]", body)
-    return body.lstrip("\n")
+def remove_public_safe_marker(body: str) -> str:
+    return body.replace(PUBLIC_SAFE_COMMENT, "").lstrip("\n")
+
+
+def private_reference_labels(text: str) -> list[str]:
+    labels: list[str] = []
+    for label, pattern in PRIVATE_REFERENCE_PATTERNS:
+        if pattern.search(text):
+            labels.append(label)
+    return labels
 
 
 def public_markdown(text: str) -> str | None:
@@ -91,12 +102,19 @@ def public_markdown(text: str) -> str | None:
         return None
 
     filtered_frontmatter = filter_frontmatter(frontmatter)
-    sanitized_body = sanitize_body(body)
+    public_body = remove_public_safe_marker(body)
 
     if not filtered_frontmatter:
-        return sanitized_body
+        output = public_body
+    else:
+        output = "---\n" + "\n".join(filtered_frontmatter) + "\n---\n\n" + public_body
 
-    return "---\n" + "\n".join(filtered_frontmatter) + "\n---\n\n" + sanitized_body
+    private_labels = private_reference_labels(output)
+    if private_labels:
+        joined = ", ".join(private_labels)
+        raise ValueError(f"public output would contain private reference(s): {joined}")
+
+    return output
 
 
 def iter_wiki_notes() -> list[Path]:
@@ -130,7 +148,22 @@ def main() -> int:
         print("No wiki markdown files found.")
         return 0
 
-    exported = [destination for note in notes if (destination := export_note(note))]
+    exported: list[Path] = []
+    errors: list[str] = []
+    for note in notes:
+        try:
+            destination = export_note(note)
+        except ValueError as exc:
+            errors.append(f"{rel(note)}: {exc}")
+            continue
+        if destination is not None:
+            exported.append(destination)
+
+    if errors:
+        for error in errors:
+            print(f"error: {error}", file=sys.stderr)
+        return 1
+
     if not exported:
         print("No public-safe wiki notes were exported.")
 

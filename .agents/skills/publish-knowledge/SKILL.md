@@ -40,6 +40,7 @@ Never modify `raw/`, `.private/`, or source `wiki/` notes.
 11. Report validation results and the final public diff.
 
 Use `scripts/export_public.py` only when its marker-based behavior matches the selected publishing task. Do not duplicate or move deterministic scripts into the skill.
+`scripts/export_public.py` fails before writing a note if the generated public output would contain `raw/imported/`, `raw/inbox/`, or private `src_...` references; it does not silently redact them.
 
 ## Stopping Conditions
 

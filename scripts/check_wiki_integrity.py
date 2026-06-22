@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
+
+from compiled_sources_registry import COMPILED_SOURCES, CompiledSourcesRegistry, SOURCE_ID_RE, load_registry
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,7 +16,6 @@ WIKI_DIRS = (
 ALLOWED_KEYS = {"id", "type", "source", "valid_from"}
 REQUIRED_KEYS = {"id", "type", "source", "valid_from"}
 ALLOWED_TYPES = {"topic", "decision", "anti-pattern"}
-SOURCE_ID_RE = re.compile(r"^src_[A-Za-z0-9][A-Za-z0-9_-]*$")
 
 
 def rel(path: Path) -> str:
@@ -87,7 +87,7 @@ def parse_frontmatter(path: Path, lines: list[str], errors: list[str]) -> dict[s
     return data
 
 
-def validate_sources(path: Path, sources: object, errors: list[str]) -> list[str]:
+def validate_sources(path: Path, sources: object, errors: list[str], registry_source_ids: set[str] | None = None) -> list[str]:
     if not isinstance(sources, list) or not sources:
         errors.append(f"{rel(path)}: source must be a non-empty list")
         return []
@@ -102,6 +102,8 @@ def validate_sources(path: Path, sources: object, errors: list[str]) -> list[str
             errors.append(f"{rel(path)}: source entries must use source IDs, not raw paths: {source}")
         elif not SOURCE_ID_RE.fullmatch(source):
             errors.append(f"{rel(path)}: source entry must match src_[A-Za-z0-9][A-Za-z0-9_-]*: {source}")
+        elif registry_source_ids is not None and source not in registry_source_ids:
+            errors.append(f"{rel(path)}: source ID absent from {rel(COMPILED_SOURCES)}: {source}")
     return normalized
 
 
@@ -110,17 +112,18 @@ def validate_file(
     ids: dict[str, list[Path]],
     source_sets: dict[tuple[str, tuple[str, ...]], list[Path]],
     errors: list[str],
-) -> None:
+    registry_source_ids: set[str] | None = None,
+) -> list[str]:
     try:
         text = path.read_text(encoding="utf-8")
     except OSError as exc:
         errors.append(f"{rel(path)}: could not read file: {exc}")
-        return
+        return []
 
     frontmatter, _body = split_frontmatter(text)
     if frontmatter is None:
         errors.append(f"{rel(path)}: missing YAML frontmatter")
-        return
+        return []
 
     data = parse_frontmatter(path, frontmatter, errors)
     keys = set(data)
@@ -142,33 +145,81 @@ def validate_file(
     if note_type not in ALLOWED_TYPES:
         errors.append(f"{rel(path)}: type must be one of {', '.join(sorted(ALLOWED_TYPES))}")
 
-    sources = validate_sources(path, data.get("source"), errors)
+    sources = validate_sources(path, data.get("source"), errors, registry_source_ids)
     if isinstance(note_type, str) and sources:
         signature = (note_type, tuple(sorted(sources)))
         source_sets.setdefault(signature, []).append(path)
+    return sources
 
 
-def main() -> int:
+def wiki_paths() -> list[Path]:
+    paths: list[Path] = []
+    for directory in WIKI_DIRS:
+        if directory.exists():
+            paths.extend(directory.rglob("*.md"))
+    return sorted(paths, key=rel)
+
+
+def validate_registry_relationships(
+    note_sources: dict[str, list[str]],
+    registry: CompiledSourcesRegistry,
+    errors: list[str],
+) -> None:
+    for note_path, sources in sorted(note_sources.items()):
+        for source_id in sources:
+            if not SOURCE_ID_RE.fullmatch(source_id):
+                continue
+            entry = registry.entries.get(source_id)
+            if entry is None:
+                continue
+            if note_path not in entry.outputs:
+                errors.append(f"{note_path}: source ID {source_id} does not list this note in {rel(COMPILED_SOURCES)} outputs")
+
+    for entry in registry.entries.values():
+        for output in entry.outputs:
+            output_path = ROOT / output
+            if not output_path.is_file():
+                errors.append(f"{rel(COMPILED_SOURCES)}: output for {entry.source_id} does not exist: {output}")
+                continue
+            output_sources = note_sources.get(output, [])
+            if entry.source_id not in output_sources:
+                errors.append(f"{rel(COMPILED_SOURCES)}: output {output} does not reference source ID {entry.source_id}")
+
+
+def validate_wiki() -> tuple[list[Path], list[str], list[str]]:
     errors: list[str] = []
     warnings: list[str] = []
     ids: dict[str, list[Path]] = {}
     source_sets: dict[tuple[str, tuple[str, ...]], list[Path]] = {}
+    note_sources: dict[str, list[str]] = {}
+    registry, registry_errors = load_registry(COMPILED_SOURCES, ROOT)
+    errors.extend(registry_errors)
+    registry_source_ids = registry.source_ids if not registry_errors else None
 
-    for directory in WIKI_DIRS:
-        if not directory.exists():
-            continue
-        for path in sorted(directory.rglob("*.md")):
-            validate_file(path, ids, source_sets, errors)
+    paths = wiki_paths()
+    for path in paths:
+        sources = validate_file(path, ids, source_sets, errors, registry_source_ids)
+        if sources:
+            note_sources[rel(path)] = sources
 
-    for note_id, paths in sorted(ids.items()):
-        if len(paths) > 1:
-            joined = ", ".join(rel(path) for path in paths)
+    for note_id, note_paths in sorted(ids.items()):
+        if len(note_paths) > 1:
+            joined = ", ".join(rel(path) for path in note_paths)
             errors.append(f"duplicate id '{note_id}': {joined}")
 
-    for (_note_type, _sources), paths in sorted(source_sets.items()):
-        if len(paths) > 1:
-            joined = ", ".join(rel(path) for path in paths)
+    for (_note_type, _sources), note_paths in sorted(source_sets.items()):
+        if len(note_paths) > 1:
+            joined = ", ".join(rel(path) for path in note_paths)
             warnings.append(f"possible duplicate wiki notes with same type and source set: {joined}")
+
+    if not registry_errors:
+        validate_registry_relationships(note_sources, registry, errors)
+
+    return paths, errors, warnings
+
+
+def main() -> int:
+    _paths, errors, warnings = validate_wiki()
 
     for warning in warnings:
         print(f"warning: {warning}", file=sys.stderr)
